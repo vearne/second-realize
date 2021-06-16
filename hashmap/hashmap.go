@@ -31,7 +31,7 @@ type HashMap struct {
 	// tableIdx + keyIdentify
 	tableIdx uint64
 	//// 已经被迁移的某个key
-	//keyIdentify string
+	keyIdentify string
 	// []*LinkedList
 	NewHashTable atomic.Value
 }
@@ -64,17 +64,17 @@ func (h *HashMap) rehash() {
 	//maxCount := 0
 	//tableCountList := make([]int, 0)
 	for h.tableIdx = 0; h.tableIdx < uint64(len(oldHashTableValue)); {
-		h.Lock()
 		for e := oldHashTableValue[h.tableIdx].innerList.Front(); e != nil; e = e.Next() {
 			item := e.Value.(KeyValueItem)
+			h.Lock()
 			// rehash并不影响size
 			setItem(newHashTableValue, item.Key, item.Value)
-
+			h.keyIdentify = item.Key
+			h.Unlock()
 		}
 		//tableCountList = append(tableCountList, oldHashTableValue[h.tableIdx].innerList.Len())
 		//maxCount = utils.Max(maxCount, oldHashTableValue[h.tableIdx].innerList.Len())
 		h.tableIdx++
-		h.Unlock()
 	}
 
 	//fmt.Println("maxCount", maxCount, "tableCountList", tableCountList)
@@ -182,7 +182,13 @@ func (h *HashMap) CompareKey(key string) int {
 		return -1
 	} else if h.tableIdx > tableIdx2 {
 		return 1
-	} else {
-		return 0
+	} else { // h.tableIdx == tableIdx2
+		if h.keyIdentify < key {
+			return -1
+		} else if h.keyIdentify > key {
+			return 1
+		} else {
+			return 0
+		}
 	}
 }

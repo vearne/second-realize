@@ -17,7 +17,7 @@ func max(d1, d2 time.Duration) time.Duration {
 
 func setMaxduration1() {
 	var maxCost time.Duration
-	h := hashmap.NewHashMap(2, 1)
+	h := hashmap.NewHashMap(2, 5)
 	for i := 0; i < 10000000; i++ {
 		if i%100000 == 0 {
 			fmt.Println("setMaxduration1-i", i)
