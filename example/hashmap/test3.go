@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/vearne/second-realize/hashmap"
 	"strconv"
+	"sync/atomic"
 	"time"
 )
 
@@ -16,9 +17,9 @@ func max(d1, d2 time.Duration) time.Duration {
 
 func setMaxduration1() {
 	var maxCost time.Duration
-	h := hashmap.NewHashMap(1, 1)
-	for i := 0; i < 100000; i++ {
-		if i%10000 == 0 {
+	h := hashmap.NewHashMap(2, 1)
+	for i := 0; i < 10000000; i++ {
+		if i%100000 == 0 {
 			fmt.Println("setMaxduration1-i", i)
 		}
 		key := strconv.Itoa(i)
@@ -27,19 +28,21 @@ func setMaxduration1() {
 		maxCost = max(maxCost, time.Since(start))
 	}
 	fmt.Println("setMaxduration1", maxCost)
-	fmt.Println("setMaxduration1", len(h.HashTable.Load().([]*hashmap.LinkedList)))
+	fmt.Println("setMaxduration1", "HashTableCapacity1:", len(h.HashTable.Load().([]*hashmap.LinkedList)))
+	fmt.Println("setMaxduration1", "HashTableCapacity2:", h.HashTableCapacity)
+	fmt.Println("setMaxduration1", "size:", atomic.LoadInt64(&h.Size))
 }
 
 func setMaxduration2() {
 	var maxCost time.Duration
-	h := make(map[string]string, 1)
-	for i := 0; i < 100000; i++ {
-		if i%10000 == 0 {
+	h := hashmap.NewStdMap(2)
+	for i := 0; i < 10000000; i++ {
+		if i%100000 == 0 {
 			fmt.Println("setMaxduration2-i", i)
 		}
 		key := strconv.Itoa(i)
 		start := time.Now()
-		h[key] = key
+		h.Set(key, key)
 		maxCost = max(maxCost, time.Since(start))
 	}
 	fmt.Println("setMaxduration2", maxCost)

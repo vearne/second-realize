@@ -1,20 +1,13 @@
 package hashmap
 
 import (
-	"hash"
-	"hash/crc64"
+	"hash/maphash"
 )
 
-var (
-	hasher hash.Hash64
-)
-
-func init() {
-	hasher = crc64.New(crc64.MakeTable(crc64.ISO))
-}
+var hasher maphash.Hash
 
 func HashCode(str string) uint64 {
-	defer hasher.Reset()
-	hasher.Write([]byte(str))
+	hasher.Reset()
+	hasher.WriteString(str)
 	return hasher.Sum64()
 }
