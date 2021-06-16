@@ -4,11 +4,9 @@ import (
 	"container/list"
 	"fmt"
 	"strings"
-	"sync"
 )
 
 type LinkedList struct {
-	sync.RWMutex
 	// 存储 KeyValueItem
 	innerList *list.List
 }
@@ -20,8 +18,6 @@ func NewLinkedList() *LinkedList {
 }
 
 func (l *LinkedList) String() string {
-	l.RLock()
-	defer l.RUnlock()
 	p := l.innerList.Front()
 	tmp := make([]string, 0, l.innerList.Len())
 	for p != nil {
@@ -34,8 +30,6 @@ func (l *LinkedList) String() string {
 // 实际添加了一条记录返回true
 // 否则返回false
 func (l *LinkedList) AddOrUpdate(key string, value interface{}) bool {
-	l.Lock()
-	defer l.Unlock()
 	item := KeyValueItem{key, value}
 	if l.innerList.Len() <= 0 {
 		l.innerList.PushBack(item)
@@ -61,8 +55,6 @@ func (l *LinkedList) AddOrUpdate(key string, value interface{}) bool {
 // 实际删除了一个数据返回true
 // 没有找到对应的key，返回false
 func (l *LinkedList) Delete(key string) bool {
-	l.Lock()
-	defer l.Unlock()
 	p := l.innerList.Front()
 	for p != nil && p.Value.(KeyValueItem).Key != key {
 		p = p.Next()
@@ -75,8 +67,6 @@ func (l *LinkedList) Delete(key string) bool {
 }
 
 func (l *LinkedList) Get(key string) (interface{}, bool) {
-	l.Lock()
-	defer l.Unlock()
 	p := l.innerList.Front()
 	for p != nil && p.Value.(KeyValueItem).Key != key {
 		p = p.Next()
