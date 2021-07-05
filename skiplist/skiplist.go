@@ -2,6 +2,7 @@ package skiplist
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"math/rand"
 )
@@ -10,12 +11,12 @@ type Node struct {
 	key   int
 	value interface{}
 	// 在某一level，在链表中，指向下一个node
-	levelNexts []*Node
+	forwards []*Node
 }
 
-func NewNode(topLevel int, key int, value interface{}) *Node {
+func NewNode(maxLevel int, key int, value interface{}) *Node {
 	var node Node
-	node.levelNexts = make([]*Node, topLevel+1)
+	node.forwards = make([]*Node, maxLevel)
 	node.key = key
 	node.value = value
 	return &node
@@ -23,6 +24,7 @@ func NewNode(topLevel int, key int, value interface{}) *Node {
 
 type SkipList struct {
 	head *Node
+	tail *Node
 	// 从0开始
 	topLevel    int
 	maxLevel    int
@@ -34,10 +36,14 @@ func NewSkipList(p float64, maxLevel int) *SkipList {
 	var list SkipList
 	list.probability = p
 	list.topLevel = 0
-	list.maxLevel = 5
+	list.maxLevel = maxLevel
 	list.count = 0
 	// 尝试加入岗哨位
-	list.head = NewNode(100, math.MinInt64, nil)
+	list.head = NewNode(maxLevel, math.MinInt64, nil)
+	list.tail = NewNode(maxLevel, math.MaxInt64, nil)
+	for i := 0; i < maxLevel; i++ {
+		list.head.forwards[i] = list.tail
+	}
 	return &list
 }
 
@@ -50,49 +56,50 @@ func (list *SkipList) Print() {
 		node := list.head
 		for node != nil {
 			if node.key == math.MinInt64 {
-				fmt.Print("[MINI]")
+				fmt.Print("[#MIN]")
+			} else if node.key == math.MaxInt64 {
+				fmt.Print("[#MAX]")
 			} else {
 				fmt.Printf("[%04d]", node.key)
 			}
 			//fmt.Printf(buildMargin(node.marginStep[top]))
-			node = node.levelNexts[top]
+			node = node.forwards[top]
 		}
 		fmt.Printf("\n")
 	}
 }
 
 func (list *SkipList) Add(key int, value interface{}) {
-	prevs := make([]*Node, list.maxLevel+1)
-
+	prevs := make([]*Node, list.maxLevel)
 	// 1. 定位它的位置
 	top := list.topLevel
 	node := list.head
 	targetKey := key
 	for top >= 0 {
-		if node.levelNexts[top] != nil && targetKey == node.levelNexts[top].key {
+		if targetKey == node.forwards[top].key {
 			// 直接找到了
-			node = node.levelNexts[top]
+			node = node.forwards[top]
 			node.value = value
 			return
-		} else if node.levelNexts[top] == nil || targetKey < node.levelNexts[top].key {
+		} else if targetKey < node.forwards[top].key {
 			prevs[top] = node
 			top--
 		} else {
-			node = node.levelNexts[top]
+			node = node.forwards[top]
 		}
 	}
 
 	// 2. 开始执行插入操作
 	newNode := NewNode(100, key, value)
-	newNode.levelNexts[0] = prevs[0].levelNexts[0]
-	prevs[0].levelNexts[0] = newNode
+	newNode.forwards[0] = prevs[0].forwards[0]
+	prevs[0].forwards[0] = newNode
 	level := 1
 	for level < list.maxLevel && isPromote(list.probability) {
 		if prevs[level] == nil {
 			prevs[level] = list.head
 		}
-		newNode.levelNexts[level] = prevs[level].levelNexts[level]
-		prevs[level].levelNexts[level] = newNode
+		newNode.forwards[level] = prevs[level].forwards[level]
+		prevs[level].forwards[level] = newNode
 		list.topLevel = max(list.topLevel, level)
 		level++
 	}
@@ -107,6 +114,13 @@ func max(a, b int) int {
 	return a
 }
 
+func min(a, b int) int {
+	if a > b {
+		return b
+	}
+	return a
+}
+
 func (list *SkipList) Delete(key int) bool {
 	prevs := make([]*Node, 100)
 
@@ -116,16 +130,16 @@ func (list *SkipList) Delete(key int) bool {
 	targetKey := key
 	occurMaxLevel := -1
 	for top >= 0 {
-		if node.levelNexts[top] != nil && targetKey == node.levelNexts[top].key {
+		if targetKey == node.forwards[top].key {
 			// 直接找到了
 			prevs[top] = node
 			occurMaxLevel = max(occurMaxLevel, top)
 			top--
-		} else if node.levelNexts[top] == nil || targetKey < node.levelNexts[top].key {
+		} else if targetKey < node.forwards[top].key {
 			prevs[top] = node
 			top--
 		} else {
-			node = node.levelNexts[top]
+			node = node.forwards[top]
 		}
 	}
 
@@ -133,16 +147,31 @@ func (list *SkipList) Delete(key int) bool {
 		return false
 	}
 	// 逐层从多个链表中删除
-	for i := 0; i <= occurMaxLevel; i++ {
+	for i := occurMaxLevel; i >= 0; i-- {
 		previous := prevs[i]
-		node := previous.levelNexts[i]
-		previous.levelNexts[i] = node.levelNexts[i]
+		node := previous.forwards[i]
+		previous.forwards[i] = node.forwards[i]
 	}
+
+	log.Println("list.topLevel", list.topLevel, "occurMaxLevel", occurMaxLevel)
+	if list.topLevel == occurMaxLevel {
+		for i := occurMaxLevel; i >= 0; i-- {
+			if list.head.forwards[i] == list.tail {
+				list.topLevel = max(i-1, 0)
+			} else {
+				break
+			}
+		}
+	}
+
 	list.count--
 	return true
 }
 func (list *SkipList) Size() int {
 	return list.count
+}
+func (list *SkipList) GetTopLevel() int {
+	return list.topLevel
 }
 
 func (list *SkipList) Find(key int) (*Node, bool) {
@@ -150,15 +179,15 @@ func (list *SkipList) Find(key int) (*Node, bool) {
 	node := list.head
 	targetKey := key
 	for top >= 0 {
-		if node.levelNexts[top] != nil && targetKey == node.levelNexts[top].key {
+		if targetKey == node.forwards[top].key {
 			// 直接找到了
-			node = node.levelNexts[top]
+			node = node.forwards[top]
 			return node, true
-		} else if node.levelNexts[top] == nil || targetKey < node.levelNexts[top].key {
+		} else if targetKey < node.forwards[top].key {
 			//prevs[top] = node
 			top--
 		} else {
-			node = node.levelNexts[top]
+			node = node.forwards[top]
 		}
 	}
 	return nil, false

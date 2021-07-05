@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/vearne/second-realize/skiplist"
 	"math/rand"
-	"time"
 )
 
 func main() {
@@ -28,13 +27,14 @@ func main() {
 		fmt.Printf("find key:%v, result:%v\n", key, ok)
 	}
 
-	keys = []int{45, 100, 27}
+	keys = []int{45, 100, 27, 1, 69, 7, 53, 75, 89, 79, 68, 20, 46, 48, 49, 67,
+		2, 13, 16}
 	for _, key := range keys {
 		ok := list.Delete(key)
 		fmt.Println("########################################")
-		fmt.Printf("delete key:%v, result:%v\n", key, ok)
+		fmt.Printf("delete key:%v, result:%v, topLevel:%v\n", key, ok, list.GetTopLevel())
 		list.Print()
-		time.Sleep(1 * time.Second)
+		//time.Sleep(1 * time.Second)
 		_, ok = list.Find(key)
 		fmt.Printf("find key:%v, result:%v\n", key, ok)
 	}
