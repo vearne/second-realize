@@ -89,19 +89,20 @@ func (list *SkipList) Add(key int, value interface{}) {
 		}
 	}
 
-	// 2. 开始执行插入操作
-	newNode := NewNode(100, key, value)
-	newNode.forwards[0] = prevs[0].forwards[0]
-	prevs[0].forwards[0] = newNode
-	level := 1
-	for level < list.maxLevel && isPromote(list.probability) {
-		if prevs[level] == nil {
-			prevs[level] = list.head
+	newLevel := randomLevel(list.probability, list.maxLevel)
+	log.Println("newLevel", newLevel, "topLevel", list.topLevel)
+	if newLevel > list.topLevel {
+		for i := list.topLevel + 1; i <= newLevel; i++ {
+			prevs[i] = list.head
 		}
+		list.topLevel = newLevel
+	}
+
+	// 2. 开始执行插入操作
+	newNode := NewNode(list.maxLevel, key, value)
+	for level := 0; level <= newLevel; level++ {
 		newNode.forwards[level] = prevs[level].forwards[level]
 		prevs[level].forwards[level] = newNode
-		list.topLevel = max(list.topLevel, level)
-		level++
 	}
 	list.count++
 	return
@@ -122,7 +123,7 @@ func min(a, b int) int {
 }
 
 func (list *SkipList) Delete(key int) bool {
-	prevs := make([]*Node, 100)
+	prevs := make([]*Node, list.maxLevel)
 
 	// 1. 定位它的位置
 	top := list.topLevel
@@ -193,6 +194,13 @@ func (list *SkipList) Find(key int) (*Node, bool) {
 	return nil, false
 }
 
+func randomLevel(p float64, maxLevel int) int {
+	level := 0
+	for isPromote(p) && level < maxLevel {
+		level++
+	}
+	return level
+}
 func isPromote(p float64) bool {
 	return rand.Intn(100) <= int(p*float64(100))
 }
